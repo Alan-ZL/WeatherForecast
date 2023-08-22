@@ -17,3 +17,4 @@ jobs:
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_WEATHER_FORECAST__DEMO }}'
           channelId: live
           projectId: weather-forecast--demo
+          publicDir: 'dist'
