@@ -5,7 +5,17 @@ import {
     getAnalytics
 } from "firebase/analytics";
 
-const firebaseConfig = {
+interface FirebaseConfig {
+    apiKey: string;
+    authDomain: string;
+    projectId: string;
+    storageBucket: string;
+    messagingSenderId: string;
+    appId: string;
+    measurementId: string;
+}
+
+const firebaseConfig: FirebaseConfig = {
     apiKey: "AIzaSyCnwih2hpvHrvubdxkaC__JSENGQFH_6Bo",
     authDomain: "weather-forecast--demo.firebaseapp.com",
     projectId: "weather-forecast--demo",
@@ -16,4 +26,5 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+// @ts-ignore
 const analytics = getAnalytics(app);
