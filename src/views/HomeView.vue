@@ -6,7 +6,6 @@ export default {
         const searchInput = ref('');
         const router = useRouter();
         const searchHandler = () => {
-            console.log(searchInput.value);
             router.push({
                 name: 'result', query: { location: searchInput.value }
             })
@@ -19,7 +18,7 @@ export default {
 }
 </script>
 <template lang="pug">
-div#home-page.flex.flex-col.items-center.min-h-screen.pt-10.pb-5
+div#home-page.flex.flex-col.items-center.min-h-screen.pt-20.pb-5
     h1.pb-5.text-3xl Weather Forecast
     input(
         type="text",
