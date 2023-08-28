@@ -19,7 +19,7 @@ export default {
 </script>
 <template lang="pug">
 div#home-page.flex.flex-col.items-center.min-h-screen.pt-20.pb-5
-    h1.pb-5.text-3xl Weather Forecast
+    h1.pb-5.text-3xl.main-text-shadow Weather Forecast
     input(
         type="text",
         name="search",
@@ -34,4 +34,4 @@ div#home-page.flex.flex-col.items-center.min-h-screen.pt-20.pb-5
         p.text-sm Powered by 
             a(href="https://www.weatherapi.com/", title="Free Weather API", class="underline") WeatherAPI.com
 </template>
-<style></style>
+<style scoped lang="scss"></style>
