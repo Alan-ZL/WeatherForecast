@@ -18,8 +18,8 @@ export default {
 }
 </script>
 <template lang="pug">
-div#home-page.flex.flex-col.items-center.min-h-screen.pt-20.pb-5
-    h1.pb-5.text-3xl.main-text-shadow Weather Forecast
+div#home-page.flex.flex-col.items-center.min-h-screen.pt-16.pb-5
+    h1.pt-4.pb-5.text-3xl.main-text-shadow Weather Forecast
     input(
         type="text",
         name="search",

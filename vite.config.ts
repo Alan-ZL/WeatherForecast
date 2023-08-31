@@ -5,11 +5,16 @@ import { fileURLToPath } from 'url'
 
 export default defineConfig({
   plugins: [
-    vue()
+    vue(), {
+      name: 'vite-plugin-vuedoc'
+    },
   ],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'vue': 'vue/dist/vue.esm-bundler.js'
     },
   },
+
 })
+
