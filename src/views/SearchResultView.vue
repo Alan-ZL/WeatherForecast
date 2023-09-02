@@ -18,6 +18,10 @@ export default {
             forecast: {
                 forecastday: {
                     date: string;
+                    astro: {
+                        sunrise: string;
+                        sunset: string;
+                    }
                     day: {
                         maxtemp_c: number;
                         mintemp_c: number;
@@ -25,17 +29,125 @@ export default {
                             icon: string;
                         };
                     };
+                    hour: {
+                        temp_c: number;
+                        condition: {
+                            icon: string;
+                        }
+                    }[]
                 }[];
             };
         }
-
         const route = useRoute();
         const router = useRouter();
+
+        // get weather api data
         const location = ref(route.query.location || 'Taipei');
         const apiKey = 'db64f5b7a0a34f70a1590014232208';
         const WeatherApiUrl = `https://api.weatherapi.com/v1/forecast.json?key=${apiKey}&q=${location.value}&days=10`;
         const { data: weatherData, error: weatherError, notFound } = useFetch<WeatherData>(WeatherApiUrl);
+
         const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        // collate hourly forecast data
+        const hourlyForecast = computed(() => {
+            const date = new Date();
+            const now = ref(date.getHours());
+            const currentDate = ref(0);
+            const { sunrise, sunset, sunriseDay, sunsetDay } = getSunriseSunsetTime(date) ?? {};
+            const result = [];
+            while (true) {
+                // now + 24hours + sunrise and sunset time = 27
+                if (result.length > 26) break;
+                // turn to next day
+                if (now.value > 23) {
+                    currentDate.value = 1;
+                    now.value = 0;
+                }
+                const data = weatherData?.value?.forecast.forecastday[currentDate.value].hour[now.value];
+                result.push({
+                    hour: now.value.toString().padStart(2, '0'),
+                    temp: Math.round(data?.temp_c ?? 0) + '°',
+                    icon: data?.condition.icon
+                });
+                // add the sunrise data 
+                if (Number(sunrise?.split(':')[0]) === now.value && sunriseDay === currentDate.value) {
+                    result.push({
+                        hour: sunrise,
+                        temp: "Sunrise",
+                        icon: "../../sunrise.png"
+                    });
+                }
+                // add the sunset data 
+                if (Number(sunset?.split(':')[0]) === now.value && sunsetDay === currentDate.value) {
+                    result.push({
+                        hour: sunset,
+                        temp: "Sunset",
+                        icon: "../../sunset.png"
+                    });
+                }
+                now.value++;
+            }
+            result[0].hour = 'Now';
+
+            return result;
+        });
+
+        // get sunrise and sunset time
+        const getSunriseSunsetTime = (date: Date) => {
+            const data = weatherData?.value?.forecast.forecastday;
+            if (!data) return null;
+
+            // get current day sunrise and sunset time
+            const [currentSunrise, currentSunset] = [
+                convertTo24HourFormat(data[0].astro.sunrise),
+                convertTo24HourFormat(data[0].astro.sunset)
+            ];
+
+            const [year, month, day] = [
+                date.getFullYear(),
+                date.getMonth(),
+                date.getDate()
+            ];
+
+            const [sunriseHours, sunriseMinutes] = currentSunrise.split(':').map(Number);
+            const [sunsetHours, sunsetMinutes] = currentSunset.split(':').map(Number);
+
+            let result = {
+                sunrise: currentSunrise,
+                sunset: currentSunset,
+                sunriseDay: 0,
+                sunsetDay: 0,
+            };
+
+            // update properties of the 'result' object based on sunrise and sunset time
+            if (date < new Date(year, month, day, sunriseHours, sunriseMinutes)) {
+                return result;
+            } else if (date < new Date(year, month, day, sunsetHours, sunsetMinutes)) {
+                result.sunrise = convertTo24HourFormat(data[1].astro.sunrise);
+                result.sunriseDay = 1;
+            } else {
+                result.sunrise = convertTo24HourFormat(data[1].astro.sunrise);
+                result.sunset = convertTo24HourFormat(data[1].astro.sunset);
+                result.sunriseDay = 1;
+                result.sunsetDay = 1;
+            }
+            return result;
+
+            function convertTo24HourFormat(timeString: string) {
+                const [time, period] = timeString.split(' ');
+                let [hours, minutes] = time.split(':');
+                let newHours = parseInt(hours, 10);
+                if (period === 'PM' && newHours !== 12) {
+                    newHours += 12;
+                } else if (period === 'AM' && newHours === 12) {
+                    newHours = 0;
+                }
+                return `${newHours.toString().padStart(2, '0')}:${minutes}`;
+            }
+        }
+
+        // get max temperature and min temperature and computed per temperature distance 
         const temperatureValues = computed(() => {
             const result = weatherData?.value?.forecast.forecastday.reduce((acc, obj) => {
                 if (obj.day.maxtemp_c > acc.maxTemp) {
@@ -52,26 +164,34 @@ export default {
                 result.distance = 115 / (result?.maxTemp - result?.minTemp + 1);
             return result;
         });
+
+        // draw the temperature line
         const tempLineDisplayHandler = (maxtemp: number, mintemp: number) => {
             const { maxTemp, minTemp, distance } = temperatureValues.value ?? { maxTemp: 0, minTemp: 0, distance: 0 };
             const leftDistance = (Math.round(mintemp) - minTemp) * distance;
             const rightDistance = (maxTemp - Math.round(maxtemp)) * distance;
             return `left:${leftDistance}px; right:${rightDistance}px;`;
         }
+
+        // draw the temperature line background
         const tempLineBgHandler = (mintemp: number) => {
             const { minTemp, distance } = temperatureValues.value ?? { maxTemp: 0, minTemp: 0, distance: 0 };
             const leftDistance = (Math.round(mintemp) - minTemp) * distance;
             return `left:-${leftDistance}px;`;
         }
+
         const homeButtonHandler = () => {
             router.push('/');
         }
+
         return {
             weatherData,
             weatherError,
             notFound,
             daysOfWeek,
+            hourlyForecast,
             temperatureValues,
+            getSunriseSunsetTime,
             tempLineDisplayHandler,
             tempLineBgHandler,
             homeButtonHandler
@@ -91,15 +211,25 @@ div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5
             div.flex.text-base.gap-2
                 p H:{{ Math.round(weatherData.forecast.forecastday[0].day.maxtemp_c) }}°
                 p L:{{ Math.round(weatherData.forecast.forecastday[0].day.mintemp_c) }}°
+        section.w-full.max-w-sm.px-3.pb-1.mb-3.backdrop-brightness-95.rounded-lg
+            div.opacity-70.text-left.text-xs.leading-8.section-title
+                i.fa-solid.fa-clock.px-1
+                | HOURLY FORECAST
+            div.flex.overflow-x-scroll.gap-7.w-full.text-xs
+                div.flex.flex-col.items-center.justify-between.w-10.leading-7(v-for="data of hourlyForecast" :key="data.hour")
+                    div {{ data.hour }} 
+                    div.w-8: img.w-8.m-0(:src="data.icon")
+                    div.text-base.leading-8 {{ data.temp }}
         section.w-full.max-w-sm.px-3.backdrop-brightness-95.rounded-lg
             table.w-full.leading-10
                 thead: tr: th.opacity-70.text-left.text-xs.leading-8(colspan="3")
                     i.fa-solid.fa-calendar-days.px-1
                     | 10-DAY-FORECAST
                 tbody 
-                    tr(v-for="(data, index) of weatherData.forecast.forecastday" :key="index")
+                    tr(v-for="(data, index) of weatherData.forecast.forecastday" :key="data.date")
                         td(colspan="1",style="width:55%") {{ index === 0 ? 'Today' : daysOfWeek[new Date(data.date).getDay()] }}
-                        td(style="width:45%"): img.w-8.m-0(:src="data.day.condition.icon")
+                        td(style="width:45%") 
+                            img.w-8.m-0(:src="data.day.condition.icon")
                         td(style="width:183px").flex.items-center.justify-center.gap-2
                             span.opacity-60 {{ Math.round(data.day.mintemp_c) }}°
                             .temp-line-wrapper: .temp-line(:style="tempLineDisplayHandler(data.day.maxtemp_c,data.day.mintemp_c)")
@@ -117,7 +247,8 @@ div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5
     color: #eee;
 
     thead>tr,
-    tbody>tr:not(:last-child) {
+    tbody>tr:not(:last-child),
+    .section-title {
         border-bottom: 1px solid #cccccc33;
     }
 
@@ -149,5 +280,21 @@ div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5
         content: '°';
         position: absolute;
     }
+}
+
+@media(min-width: 500px) {
+    ::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background-color: #33333333;
+        border-radius: 20px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #11111133;
+    }
+
 }
 </style>
