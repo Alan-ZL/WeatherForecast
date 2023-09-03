@@ -40,6 +40,7 @@ export default {
         }
         const route = useRoute();
         const router = useRouter();
+        const showList = ref(false);
 
         // get weather api data
         const location = ref(route.query.location || 'Taipei');
@@ -147,9 +148,20 @@ export default {
             }
         }
 
+        // select filter day
+        const selectFilterDay = (num: number) => {
+            numOfDays.value = num;
+        }
+
+        // filter weather forecast
+        const numOfDays = ref(10);
+        const filterWeatherForecast = computed(() => {
+            return weatherData.value?.forecast.forecastday.slice(0, numOfDays.value);
+        })
+
         // get max temperature and min temperature and computed per temperature distance 
         const temperatureValues = computed(() => {
-            const result = weatherData?.value?.forecast.forecastday.reduce((acc, obj) => {
+            const result = filterWeatherForecast.value?.reduce((acc, obj) => {
                 if (obj.day.maxtemp_c > acc.maxTemp) {
                     acc.maxTemp = Math.round(obj.day.maxtemp_c);
                     acc.distance = 115 / (acc.maxTemp - acc.minTemp + 1)
@@ -185,12 +197,16 @@ export default {
         }
 
         return {
+            showList,
             weatherData,
             weatherError,
             notFound,
             daysOfWeek,
             hourlyForecast,
             temperatureValues,
+            numOfDays,
+            filterWeatherForecast,
+            selectFilterDay,
             getSunriseSunsetTime,
             tempLineDisplayHandler,
             tempLineBgHandler,
@@ -200,7 +216,7 @@ export default {
 }
 </script>
 <template lang="pug">
-div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5
+div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5.overflow-hidden(@click="showList = false")
     button.absolute.top-5.left-5.text-3xl.cursor-pointer(@click="homeButtonHandler")
         i.fa-solid.fa-angle-left.text-stone-800
     template(v-if="weatherData && !notFound")
@@ -216,24 +232,34 @@ div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5
                 i.fa-solid.fa-clock.px-1
                 | HOURLY FORECAST
             div.flex.overflow-x-scroll.gap-7.w-full.text-xs
-                div.flex.flex-col.items-center.justify-between.w-10.leading-7(v-for="data of hourlyForecast" :key="data.hour")
+                div(v-for="data of hourlyForecast" :key="data.hour"
+                    class="flex flex-col items-center justify-between w-10 leading-7")
                     div {{ data.hour }} 
                     div.w-8: img.w-8.m-0(:src="data.icon")
                     div.text-base.leading-8 {{ data.temp }}
         section.w-full.max-w-sm.px-3.backdrop-brightness-95.rounded-lg
-            table.w-full.leading-10
-                thead: tr: th.opacity-70.text-left.text-xs.leading-8(colspan="3")
-                    i.fa-solid.fa-calendar-days.px-1
-                    | 10-DAY-FORECAST
-                tbody 
-                    tr(v-for="(data, index) of weatherData.forecast.forecastday" :key="data.date")
-                        td(colspan="1",style="width:55%") {{ index === 0 ? 'Today' : daysOfWeek[new Date(data.date).getDay()] }}
-                        td(style="width:45%") 
+            table.w-full.leading-10.relative(style="transform-style: preserve-3d;")
+                thead.z-10.relative.ios-z-index-1: tr: th.text-left.text-xs.leading-8(colspan="3")
+                    div.flex.items-center
+                        i.fa-solid.fa-calendar-days.px-1.opacity-70
+                        span.opacity-70 {{numOfDays}}-DAY-FORECAST
+                        button(@click.stop="showList = !showList"
+                            class=" bg-gray-600 text-gray-200 leading-relaxed ml-auto px-1 rounded-sm opacity-95 relative") 天數(選單)
+                            Transition(name="slide-fade")
+                                ul(v-show="showList" 
+                                class="bg-gray-700 absolute w-16 right-px overflow-hidden top-8 rounded-sm z-10 filter-list ios-z-index-1")
+                                    li(v-for="num of 10" :key="num" @click="selectFilterDay(num)"
+                                    class="section-title leading-7 filter-list-item relative") {{ num }} 日
+                tbody.z-0.relative.ios-z-index-0
+                    tr(v-for="(data, index) of filterWeatherForecast" :key="data.date")
+                        td(colspan="1" style="width:55%") {{ index === 0 ? 'Today' : daysOfWeek[new Date(data.date).getDay()] }}
+                        td(style="width:45%")
                             img.w-8.m-0(:src="data.day.condition.icon")
                         td(style="width:183px").flex.items-center.justify-center.gap-2
                             span.opacity-60 {{ Math.round(data.day.mintemp_c) }}°
-                            .temp-line-wrapper: .temp-line(:style="tempLineDisplayHandler(data.day.maxtemp_c,data.day.mintemp_c)")
-                                .temp-line-bg(:style="tempLineBgHandler(data.day.mintemp_c)")
+                            .temp-line-wrapper
+                                .temp-line(:style="tempLineDisplayHandler(data.day.maxtemp_c,data.day.mintemp_c)" class="z-0")
+                                    .temp-line-bg.z-0(:style="tempLineBgHandler(data.day.mintemp_c)")
                             span {{ Math.round(data.day.maxtemp_c) }}°
     template(v-else-if="notFound")
         p.text-2xl.pt-20 No matching location found.
@@ -276,9 +302,50 @@ div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5
         }
     }
 
+    .filter-list {
+        .filter-list-item {
+
+            &:hover {
+                backdrop-filter: brightness(0.75);
+            }
+        }
+
+    }
+
     .temp::after {
         content: '°';
         position: absolute;
+    }
+
+    //for ios z-index
+    .ios-z-index-0 {
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        -moz-transform: translateZ(0);
+        -o-transform: translateZ(0);
+    }
+
+    .ios-z-index-1 {
+        transform: translateZ(1px);
+        -webkit-transform: translateZ(1px);
+        -moz-transform: translateZ(1px);
+        -o-transform: translateZ(1px);
+    }
+
+    .slide-fade-enter-active,
+    .slide-fade-leave-active {
+        transition: all 0.5s ease;
+    }
+
+    .slide-fade-enter-to,
+    .slide-fade-leave-from {
+        height: 288px;
+    }
+
+    .slide-fade-enter-from,
+    .slide-fade-leave-to {
+        opacity: 0;
+        height: 0px;
     }
 }
 
