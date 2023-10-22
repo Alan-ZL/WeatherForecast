@@ -49,6 +49,7 @@ export default {
         const { data: weatherData, error: weatherError, notFound } = useFetch<WeatherData>(WeatherApiUrl);
 
         const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const fixedLocation = ref(null)
 
         // collate hourly forecast data
         const hourlyForecast = computed(() => {
@@ -154,7 +155,7 @@ export default {
         }
 
         // filter weather forecast
-        const numOfDays = ref(10);
+        const numOfDays = ref(3);
         const filterWeatherForecast = computed(() => {
             return weatherData.value?.forecast.forecastday.slice(0, numOfDays.value);
         })
@@ -206,6 +207,7 @@ export default {
             temperatureValues,
             numOfDays,
             filterWeatherForecast,
+            fixedLocation,
             selectFilterDay,
             getSunriseSunsetTime,
             tempLineDisplayHandler,
@@ -248,7 +250,7 @@ div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5.overflow-hidde
                             Transition(name="slide-fade")
                                 ul(v-show="showList" 
                                 class="bg-gray-700 absolute w-16 right-px overflow-hidden top-8 rounded-sm z-10 filter-list ios-z-index-1")
-                                    li(v-for="num of 10" :key="num" @click="selectFilterDay(num)"
+                                    li(v-for="num of 3" :key="num" @click="selectFilterDay(num)"
                                     class="section-title leading-7 filter-list-item relative") {{ num }} 日
                 tbody.z-0.relative.ios-z-index-0
                     tr(v-for="(data, index) of filterWeatherForecast" :key="data.date")
@@ -339,7 +341,7 @@ div#result-page.flex.flex-col.items-center.min-h-screen.px-4.pb-5.overflow-hidde
 
     .slide-fade-enter-to,
     .slide-fade-leave-from {
-        height: 288px;
+        height: 86.4px;
     }
 
     .slide-fade-enter-from,
